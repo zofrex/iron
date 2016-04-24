@@ -37,6 +37,8 @@ num_cpus = "0.2"
 [dependencies.hyper]
 version = "0.8"
 default-features = false
+git = "https://github.com/zofrex/hyper"
+branch = "from_listener"
 
 [dev-dependencies]
 time = "0.1"

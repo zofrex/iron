@@ -1,7 +1,7 @@
 //! Exposes the `Iron` type, the main entrance point of the
 //! `Iron` library.
 
-use std::net::{ToSocketAddrs, SocketAddr};
+use std::net::{ToSocketAddrs, SocketAddr, TcpListener};
 use std::time::Duration;
 #[cfg(feature = "ssl")]
 use std::path::PathBuf;
@@ -112,6 +112,11 @@ impl<H: Handler> Iron<H> {
         self.listen_with(addr, 8 * ::num_cpus::get(), Protocol::Http, None)
     }
 
+    /// Exactly the same as the other one, but with a TcpListener :P
+    pub fn http_on(self, listener: TcpListener) -> HttpResult<Listening> {
+        self.listen_on(listener, 8 * ::num_cpus::get(), Protocol::Http, None)
+    }
+
     /// Kick off the server process using the HTTPS protocol.
     ///
     /// Call this once to begin listening for requests on the server.
@@ -170,6 +175,31 @@ impl<H: Handler> Iron<H> {
                 server.set_read_timeout(timeouts.read);
                 server.set_write_timeout(timeouts.write);
                 server.handle_threads(self, threads)
+            }
+        }
+    }
+
+    /// Like the other one but with a TcpListener
+    pub fn listen_on(mut self, listener: TcpListener, threads: usize,
+                                         protocol: Protocol,
+                                         timeouts: Option<Timeouts>) -> HttpResult<Listening> {
+
+        self.addr = Some(listener.local_addr().unwrap());
+        self.protocol = Some(protocol.clone());
+
+        match protocol {
+            Protocol::Http => {
+                let mut server = Server::http_on_listener(listener);
+                let timeouts = timeouts.unwrap_or_default();
+                server.keep_alive(timeouts.keep_alive);
+                server.set_read_timeout(timeouts.read);
+                server.set_write_timeout(timeouts.write);
+                server.handle_threads(self, threads)
+            },
+
+            #[cfg(feature = "ssl")]
+            Protocol::Https { ref certificate, ref key } => {
+                panic!("Not implemented")
             }
         }
     }
